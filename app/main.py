@@ -33,7 +33,6 @@ class URLResponse(BaseModel):
     original_url: str 
     short_code: str
     short_url: str 
-
     class Config:
         from_attributes = True 
 
@@ -53,28 +52,27 @@ app.add_middleware(
 @app.post("/shorten", response_model=URLResponse)
 def create_short_url(request: URLRequest, db: Session = Depends(get_db)):
     original_url = str(request.original_url)
-
     existing = db.query(URL).filter(URL.original_url == original_url).first()
     if existing:
         return {
             "original_url": existing.original_url,
             "short_code": existing.short_code,
-            "short_url": f"http://localhost:8000/{existing.short_code}"
+            "short_url": f"https://url-shortner-vvny.onrender.com/{existing.short_code}"
         }
     
     short_code = generate_short_code()
     while db.query(URL).filter(URL.short_code == short_code).first():
         short_code = generate_short_code()
-
+    
     new_url = URL(original_url=original_url, short_code=short_code)
     db.add(new_url)
     db.commit()
     db.refresh(new_url)
-
+    
     return {
         "original_url": new_url.original_url,
         "short_code": new_url.short_code,
-        "short_url": f"http://localhost:8000/{new_url.short_code}"
+        "short_url": f"https://url-shortner-vvny.onrender.com/{new_url.short_code}"
     }
 
 @app.get("/api/urls", response_model=list[URLResponse])
@@ -85,7 +83,7 @@ def get_all_urls(db: Session = Depends(get_db)):
         result.append({
             "original_url": url.original_url,
             "short_code": url.short_code,
-            "short_url": f"http://localhost:8000/{url.short_code}"
+            "short_url": f"https://url-shortner-vvny.onrender.com/{url.short_code}"
         })
     
     return result
@@ -99,12 +97,10 @@ def redirect_to_original(short_code: str, db: Session = Depends(get_db)):
     return RedirectResponse(url=url_entry.original_url)
 
 @app.delete("/delete/{short_code}")
-def delete_url(short_code: str,db: Session = Depends(get_db)):
+def delete_url(short_code: str, db: Session = Depends(get_db)):
     url = db.query(URL).filter(URL.short_code == short_code).first()
-
     if not url:
         raise HTTPException(status_code=404, detail="URL Not Found")
-
     db.delete(url)
     db.commit()
     return {"message": "URL deleted Successfully"}
